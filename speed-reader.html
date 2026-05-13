@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Speed Reader</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; background: #000; color: #fff; font-family: Georgia, serif; }
+
+#setup-screen {
+  width: 100%; min-height: 100vh;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 2rem; gap: 1.5rem;
+}
+
+#setup-screen h1 {
+  font-size: 18px; font-weight: 400;
+  letter-spacing: 0.15em; color: #888;
+}
+
+textarea#text-input {
+  width: 100%; max-width: 560px;
+  background: #0d0d0d; border: 1px solid #222;
+  color: #ccc; font-size: 14px; padding: 14px;
+  border-radius: 4px; resize: vertical;
+  min-height: 180px; font-family: monospace;
+  line-height: 1.6; outline: none;
+  transition: border-color 0.2s;
+}
+textarea#text-input:focus { border-color: #444; }
+
+#drop-zone {
+  border: 1px dashed #333; border-radius: 4px;
+  padding: 18px; text-align: center; color: #444;
+  font-size: 13px; letter-spacing: 0.05em;
+  cursor: pointer; transition: border-color 0.2s, color 0.2s;
+  width: 100%; max-width: 560px;
+}
+#drop-zone:hover, #drop-zone.drag-over { border-color: #666; color: #888; }
+#drop-zone input[type=file] { display: none; }
+
+#wpm-row { display: flex; align-items: center; gap: 14px; }
+#wpm-row label { font-size: 13px; color: #555; letter-spacing: 0.06em; }
+input[type=range]#wpm-s {
+  -webkit-appearance: none; width: 140px; height: 2px;
+  background: #333; border-radius: 1px; outline: none;
+}
+input[type=range]#wpm-s::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 14px; height: 14px;
+  border-radius: 50%; background: #fff; cursor: pointer;
+}
+#wpm-val { font-size: 13px; color: #777; min-width: 60px; }
+
+#play-btn {
+  background: #111; border: 1px solid #e05252;
+  color: #e05252; font-family: Georgia, serif;
+  font-size: 15px; letter-spacing: 0.12em;
+  padding: 10px 40px; border-radius: 4px;
+  cursor: pointer; transition: background 0.15s;
+}
+#play-btn:hover { background: #1a0a0a; }
+
+#reader-screen {
+  display: none; position: fixed; inset: 0;
+  background: #000; color: #fff;
+  font-family: Georgia, serif;
+  flex-direction: column;
+  align-items: center; justify-content: center;
+  z-index: 9999;
+}
+
+#reader-word {
+  font-size: clamp(40px, 8vw, 80px);
+  font-weight: 400; letter-spacing: 0.02em;
+  text-align: center; user-select: none;
+  line-height: 1; min-height: 1.2em;
+  display: flex; align-items: center;
+}
+.focal { color: #e05252; }
+
+#reader-bottom {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  padding: 20px 32px; display: flex;
+  flex-direction: column; gap: 10px;
+}
+
+#reader-progress {
+  width: 100%; height: 2px;
+  background: #1a1a1a; border-radius: 1px;
+}
+#reader-fill {
+  height: 100%; background: #333;
+  border-radius: 1px; transition: width 0.1s linear; width: 0%;
+}
+
+#reader-controls {
+  display: flex; align-items: center;
+  justify-content: space-between;
+}
+#reader-left { display: flex; gap: 10px; }
+
+.r-btn {
+  background: transparent; border: 1px solid #2a2a2a;
+  color: #666; font-size: 12px; letter-spacing: 0.07em;
+  padding: 6px 16px; border-radius: 3px; cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  font-family: Georgia, serif;
+}
+.r-btn:hover { color: #ccc; border-color: #555; }
+
+#r-wpm-row { display: flex; align-items: center; gap: 10px; }
+#r-wpm-s {
+  -webkit-appearance: none; width: 100px; height: 2px;
+  background: #2a2a2a; border-radius: 1px; outline: none;
+}
+#r-wpm-s::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 12px; height: 12px;
+  border-radius: 50%; background: #888; cursor: pointer;
+}
+#r-wpm-val { font-size: 12px; color: #444; min-width: 55px; text-align: right; }
+#r-word-count { font-size: 12px; color: #333; }
+
+#done-overlay {
+  display: none; position: absolute; inset: 0;
+  align-items: center; justify-content: center;
+  flex-direction: column; gap: 20px; background: #000;
+}
+#done-overlay.show { display: flex; }
+#done-overlay p { font-size: 14px; color: #555; letter-spacing: 0.1em; }
+#done-overlay button {
+  background: transparent; border: 1px solid #333;
+  color: #888; font-size: 13px; padding: 8px 24px;
+  border-radius: 4px; cursor: pointer; font-family: Georgia, serif;
+}
+#done-overlay button:hover { border-color: #666; color: #ccc; }
+</style>
+</head>
+<body>
+
+<div id="setup-screen">
+  <h1>speed reader</h1>
+  <textarea id="text-input" placeholder="Paste your text here…"></textarea>
+  <div id="drop-zone" onclick="document.getElementById('file-input').click()">
+    <input type="file" id="file-input" accept=".txt">
+    drop a .txt file here or click to browse
+  </div>
+  <div id="wpm-row">
+    <label>speed</label>
+    <input type="range" id="wpm-s" min="100" max="1000" value="300" step="10">
+    <span id="wpm-val">300 wpm</span>
+  </div>
+  <button id="play-btn">▶ play</button>
+</div>
+
+<div id="reader-screen">
+  <div id="reader-word"></div>
+  <div id="reader-bottom">
+    <div id="reader-progress"><div id="reader-fill"></div></div>
+    <div id="reader-controls">
+      <div id="reader-left">
+        <button class="r-btn" id="r-pause">pause</button>
+        <button class="r-btn" id="r-restart">restart</button>
+        <button class="r-btn" id="r-exit">✕ exit</button>
+      </div>
+      <div id="r-wpm-row">
+        <span id="r-word-count">0 / 0</span>
+        <input type="range" id="r-wpm-s" min="100" max="1000" value="300" step="10">
+        <span id="r-wpm-val">300 wpm</span>
+      </div>
+    </div>
+  </div>
+  <div id="done-overlay">
+    <p>— done —</p>
+    <button id="done-exit">back to text</button>
+  </div>
+</div>
+
+<script>
+const textInput = document.getElementById('text-input');
+const fileInput = document.getElementById('file-input');
+const dropZone = document.getElementById('drop-zone');
+const wpmS = document.getElementById('wpm-s');
+const wpmVal = document.getElementById('wpm-val');
+const playBtn = document.getElementById('play-btn');
+const readerScreen = document.getElementById('reader-screen');
+const readerWord = document.getElementById('reader-word');
+const readerFill = document.getElementById('reader-fill');
+const rWordCount = document.getElementById('r-word-count');
+const rWpmS = document.getElementById('r-wpm-s');
+const rWpmVal = document.getElementById('r-wpm-val');
+const rPause = document.getElementById('r-pause');
+const rRestart = document.getElementById('r-restart');
+const rExit = document.getElementById('r-exit');
+const doneOverlay = document.getElementById('done-overlay');
+const doneExit = document.getElementById('done-exit');
+
+let words = [], idx = 0, timer = null, wpm = 300, paused = false;
+
+function getFocal(word) {
+  const len = word.replace(/[^a-zA-Z]/g, '').length;
+  if (len <= 1) return 0;
+  if (len <= 5) return 1;
+  if (len <= 9) return 2;
+  return 3;
+}
+
+function renderWord(word) {
+  const fi = getFocal(word);
+  readerWord.innerHTML =
+    `<span style="opacity:0.8">${word.slice(0,fi)}</span><span class="focal">${word.slice(fi,fi+1)}</span><span style="opacity:0.8">${word.slice(fi+1)}</span>`;
+}
+
+function updateProgress() {
+  readerFill.style.width = (words.length ? (idx / words.length) * 100 : 0) + '%';
+  rWordCount.textContent = `${Math.min(idx, words.length)} / ${words.length}`;
+}
+
+function tick() {
+  if (idx >= words.length) { timer = null; doneOverlay.classList.add('show'); return; }
+  renderWord(words[idx]);
+  updateProgress();
+  idx++;
+  timer = setTimeout(tick, (60 / wpm) * 1000);
+}
+
+function pausePlay() {
+  if (timer) {
+    clearTimeout(timer); timer = null; paused = true; rPause.textContent = 'resume';
+  } else if (paused) {
+    paused = false; rPause.textContent = 'pause'; tick();
+  }
+}
+
+function openReader() {
+  const raw = textInput.value.trim();
+  words = raw.split(/\s+/).filter(Boolean);
+  if (!words.length) { alert('Please enter or load some text first.'); return; }
+  idx = 0; paused = false;
+  doneOverlay.classList.remove('show');
+  updateProgress();
+  rPause.textContent = 'pause';
+  readerScreen.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+  tick();
+}
+
+function closeReader() {
+  clearTimeout(timer); timer = null;
+  readerScreen.style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+playBtn.addEventListener('click', openReader);
+rPause.addEventListener('click', pausePlay);
+rRestart.addEventListener('click', () => {
+  clearTimeout(timer); timer = null;
+  idx = 0; paused = false;
+  doneOverlay.classList.remove('show');
+  rPause.textContent = 'pause';
+  updateProgress(); tick();
+});
+rExit.addEventListener('click', closeReader);
+doneExit.addEventListener('click', closeReader);
+
+wpmS.addEventListener('input', () => {
+  wpm = parseInt(wpmS.value);
+  wpmVal.textContent = wpm + ' wpm';
+  rWpmS.value = wpm; rWpmVal.textContent = wpm + ' wpm';
+});
+rWpmS.addEventListener('input', () => {
+  wpm = parseInt(rWpmS.value);
+  rWpmVal.textContent = wpm + ' wpm';
+  wpmS.value = wpm; wpmVal.textContent = wpm + ' wpm';
+  if (timer) { clearTimeout(timer); timer = null; tick(); }
+});
+
+function loadFile(file) {
+  if (!file || !file.name.endsWith('.txt')) return;
+  const r = new FileReader();
+  r.onload = e => { textInput.value = e.target.result; };
+  r.readAsText(file);
+}
+
+fileInput.addEventListener('change', () => loadFile(fileInput.files[0]));
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); loadFile(e.dataTransfer.files[0]); });
+
+document.addEventListener('keydown', e => {
+  if (readerScreen.style.display !== 'flex') return;
+  if (e.code === 'Space') { e.preventDefault(); pausePlay(); }
+  if (e.code === 'Escape') closeReader();
+});
+</script>
+</body>
+</html>
