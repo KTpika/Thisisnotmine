@@ -9,7 +9,6 @@ var GAMES = [
   { name: "Duality",  file: "Duality.js"  },
   { name: "Everred",  file: "everred.js"  },
   { name: "Funklost", file: "Funklost.js" },
-  { name: "Games",    file: "games.js"    },
   { name: "Ingeste",  file: "Ingeste.js"  },
   { name: "Maddyx",   file: "Maddyx.js"   },
   { name: "Muteste",  file: "Muteste.js"  },
