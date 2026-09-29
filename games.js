@@ -10,5 +10,5 @@ var GAMES = [
   { name: "Practice", file: "Practice.js" },
   { name: "Puzzle",   file: "Puzzle.js"   },
   { name: "Speed",    file: "Speed.js"    },
-  { name: "Vector",   file: "Vector.js"   },
+  { name: "BlancV2",   file: "BlancV2.js"   },
 ];
