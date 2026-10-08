@@ -43,7 +43,6 @@ var GAMES = [
   { name: "Frozen Caves",      file: "frozencaves.js"      },
   { name: "Fuji",              file: "fuji.js"             },
   { name: "Funklost",          file: "Funklost.js"         },
-  { name: "Games",             file: "games.js"            },
   { name: "Getting Over It",   file: "GettingOverIt.js"    },
   { name: "Gock V1",           file: "gockV1.js"           },
   { name: "Gym",               file: "gym.js"              },
